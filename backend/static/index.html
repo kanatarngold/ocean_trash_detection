@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ocean Trash Detector</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Ocean Trash Detector</h1>
+            <div class="status">
+                <span id="connection-status" class="badge disconnected">Disconnected</span>
+            </div>
+        </header>
+        
+        <main>
+            <div class="video-container">
+                <img id="video-feed" src="/static/placeholder.jpg" alt="Live Feed">
+                <div class="overlay">
+                    <div class="stats-panel">
+                        <h3>Detected Objects</h3>
+                        <ul id="stats-list">
+                            <li>Waiting for stream...</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button id="start-btn" onclick="startStream()">Start Detection</button>
+                <button id="stop-btn" onclick="stopStream()" disabled>Stop</button>
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
