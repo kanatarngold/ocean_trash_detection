@@ -22,7 +22,7 @@ MODEL_PATH = os.path.join(BASE_DIR, "models", "best_int8.tflite")
 LABEL_PATH = os.path.join(BASE_DIR, "models", "labels.txt")
 
 def main():
-    print("🌊 Ocean Sentry BROADCAST (v3.0) - Reference Layout Start...")
+    print("🌊 Ocean Sentry BROADCAST (v3.1) - Centered Footer & HD Grid Start...")
 
     # 1. Detector laden
     try:
