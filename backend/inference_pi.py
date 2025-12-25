@@ -50,11 +50,13 @@ def main():
         picam2.configure(config)
         picam2.start()
         
+        picam2.start()
+        
         using_picamera = True
         print("✅ Picamera2 läuft!")
         
-    except ImportError:
-        print("⚠️ Picamera2 nicht gefunden. Installiere es mit: sudo apt install python3-picamera2")
+    except Exception as e:
+        print(f"⚠️ Picamera2 Fehler: {e}")
         print("Versuche Fallback auf OpenCV (GStreamer)...")
         using_picamera = False
         
