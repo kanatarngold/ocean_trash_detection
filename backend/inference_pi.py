@@ -32,17 +32,21 @@ def main():
         print(f"❌ Kritisches Fehler beim Laden des Modells: {e}")
         return
 
-    # 2. Kamera Setup
-    # WICHTIG: Auf Pi oft index 0 oder -1. Wir nutzen CAP_V4L2 für neue Treiber.
-    cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
-    # Fallback, falls 0 nicht geht
-    if not cap.isOpened():
-        print("⚠️ Kamera 0 nicht gefunden. Teste Kamera 1...")
-        cap = cv2.VideoCapture(1, cv2.CAP_V4L2)
+    # 2. Kamera Setup (GStreamer für Pi Bookworm / Libcamera)
+    # Das ist die stabilste Methode für neue Pis
+    gstreamer_pipeline = (
+        "libcamerasrc ! video/x-raw, width=640, height=480, framerate=30/1 ! "
+        "videoconvert ! appsink"
+    )
+    
+    print(f"📷 Versuche GStreamer Pipeline: {gstreamer_pipeline}")
+    cap = cv2.VideoCapture(gstreamer_pipeline, cv2.CAP_GSTREAMER)
 
-    # Resolution settings (Pi Camera v2/3 standard)
-    cap.set(3, 640)
-    cap.set(4, 480)
+    if not cap.isOpened():
+        print("⚠️ GStreamer fehlgeschlagen. Versuche Fallback (V4L2)...")
+        cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
+        cap.set(3, 640)
+        cap.set(4, 480)
 
     if not cap.isOpened():
         print("❌ Fehler: Kamera konnte nicht geöffnet werden.")
