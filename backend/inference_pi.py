@@ -22,7 +22,7 @@ MODEL_PATH = os.path.join(BASE_DIR, "models", "best_int8.tflite")
 LABEL_PATH = os.path.join(BASE_DIR, "models", "labels.txt")
 
 def main():
-    print("🌊 Ocean Sentry NAV - DEEP OCEAN THEME (v2.1) wird gestartet...")
+    print("🌊 Ocean Sentry BROADCAST (v3.0) - Reference Layout Start...")
 
     # 1. Detector laden
     try:
@@ -58,25 +58,26 @@ def main():
         print("✅ Picamera2 läuft!")
         
     except Exception as e:
-        print(f"⚠️ Picamera2 Fehler: {e}")
-        print("Versuche Fallback auf OpenCV (GStreamer)...")
+        # Fallback to OpenCV (USB Webcam or Mac)
+        print(f"⚠️ Picamera2 Error: {e}")
+        print("🔄 Fallback to OpenCV VideoCapture...")
         using_picamera = False
-        
-        # Fallback to GStreamer
-        gstreamer_pipeline = (
-            "libcamerasrc ! video/x-raw, width=640, height=480, framerate=30/1 ! "
-            "videoconvert ! appsink"
-        )
-        cap = cv2.VideoCapture(gstreamer_pipeline, cv2.CAP_GSTREAMER)
+        cap = cv2.VideoCapture(0)
+        # Try to set MJPEG for speed if supported
+        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
         if not cap.isOpened():
-             cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
+            print("❌ Fehler: Keine Kamera gefunden!")
+            return
 
-    # 3. FPS Counter
-    start_time = time.time()
+    time.sleep(2) # Warmlaufen
+
+    # Statistics
     frame_count = 0
-    fps = 0.0
-
-    print("🚀 System bereit! Drücke 'q' zum Beenden.")
+    start_time = time.time()
+    fps = 0
     
     # Store last detections to reuse them between inference frames
     last_detections = []
@@ -91,8 +92,8 @@ def main():
 
     # 1. Pre-allocate Cinema Mode Canvas (Optimization)
     # create once, reuse forever.
-    # COLOR: Deep Navy (36, 23, 15) for Marine UI
-    canvas = np.full((1080, 1920, 3), (36, 23, 15), dtype=np.uint8)
+    # COLOR: True Black (0, 0, 0) for Broadcast UI to match bars
+    canvas = np.zeros((1080, 1920, 3), dtype=np.uint8)
     y_offset = (1080 - 960) // 2
     x_offset = (1920 - 1280) // 2
     
@@ -125,11 +126,8 @@ def main():
                 detections = last_detections
 
             # 2. Cinema Mode Processing
-            # Reset canvas background (clean slate) - crucial for Industrial Look
-            # We only need to clear the camera area if we want to be super safe, 
-            # but resetting the whole thing prevents artifacts.
-            # Using 'canvas[:] = Color' is fast enough on Pi 4/5.
-            canvas[:] = (36, 23, 15)
+            # Reset canvas for Broadcast Layout
+            canvas.fill(0) # True Black
             
             # Resize camera to nice HD size (1280x960)
             hd_frame = cv2.resize(frame, (1280, 960), interpolation=cv2.INTER_LINEAR)

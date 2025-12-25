@@ -3,137 +3,167 @@ import numpy as np
 
 class Visualizer:
     def __init__(self):
-        # --- FARBKONZEPT: DEEP OCEAN (Marine Standard) ---
-        # Palette inspiriert von modernen Schiffsbrücken (OpenBridge)
-        # Format: BGR (Blue-Green-Red)
+        # --- DESIGN: BROADCAST / MILITARY (Reference Image) ---
+        # High Contrast, True Black, Solid Labels
+        
+        # BGR Colors
         self.colors = {
-            "Background": (36, 23, 15),     # #0F1724 (Deep Navy / Midnight Blue)
-            "Surface":    (59, 41, 30),     # #1E293B (Slate Navy - für Footer)
-            "Accent":     (248, 189, 56),   # #38BDF8 (Cyan / Sky Blue - Hauptakzent)
-            "TextLight":  (249, 245, 241),  # #F1F5F9 (Slate White - bester Kontrast auf Blau)
-            "TextDim":    (184, 163, 148),  # #94A3B8 (Slate Grey - für Metadaten)
-            "Success":    (128, 222, 74),   # #4ADE80 (Eco Green)
-            "Warning":    (36, 191, 251),   # #FBBF24 (Amber - soft warning)
-            "Alert":      (113, 113, 248)   # #F87171 (Soft Red)
+            "Black":      (0, 0, 0),         # True Black
+            "White":      (255, 255, 255),   # Pure White
+            "Amber":      (0, 165, 255),     # #FFA500 (Orange/Amber Title)
+            "Yellow":     (0, 255, 255),     # Standard Yellow
+            "Cyan":       (255, 255, 0),     # Standard Cyan
+            "Grey":       (80, 80, 80),      # Dark Grey for separators
         }
         
-        # --- TYPOGRAFIE ---
-        # Clean & Nautisch
-        self.font_main = cv2.FONT_HERSHEY_SIMPLEX
-        self.font_tech = cv2.FONT_HERSHEY_PLAIN
-        
-        self.footer_h = 42
+        # Fonts - Larger and bolder
+        self.font = cv2.FONT_HERSHEY_SIMPLEX
+        # Scales
+        self.s_header = 0.8
+        self.s_label = 0.7
+        self.s_footer = 0.65
 
     def draw_tracker_overlay(self, canvas, detections, fps):
         """
-        Zeichnet das 'Deep Ocean' Interface.
-        Erwartet Canvas in 'Background'-Farbe (36, 23, 15).
+        Layout based on reference:
+        - Top Bar (Black) with "CAM-01", Icon, Title, FPS.
+        - Center: Camera Feed with thin border.
+        - Bottom Bar (Black) with detailed stats separated by pipes.
         """
-        h_cam, w_cam, _ = canvas.shape
+        h_cam, w_cam, _ = canvas.shape # 1080p
         
-        # 1. Kamera-Rahmen (Cyan)
+        # 1. Background Fill (Ensure True Black borders)
+        # Assuming inference_pi fills canvas with black or we overwrite headers
+        # We need specific bars.
+        
+        header_h = 60
+        footer_h = 60
+        
+        # Top Header Bar
+        cv2.rectangle(canvas, (0, 0), (w_cam, header_h), self.colors["Black"], -1)
+        # Bottom Footer Bar
+        cv2.rectangle(canvas, (0, h_cam - footer_h), (w_cam, h_cam), self.colors["Black"], -1)
+        
+        # --- HEADER CONTENT ---
+        y_head = 40
+        # "CAM-01" (Orange/Amber) + Icon (Circle)
+        cv2.circle(canvas, (30, y_head - 10), 8, self.colors["White"], -1) # "Icon" placeholder
+        cv2.circle(canvas, (30, y_head - 10), 4, self.colors["Black"], -1) # abstract eye
+        
+        cv2.putText(canvas, "CAM-01", (60, y_head), 
+                    self.font, self.s_header, self.colors["Amber"], 2, cv2.LINE_AA)
+        
+        # Center Title "Pallescreen" (or Project Name)
+        title = "OCEAN SENTRY"
+        (tw, _), _ = cv2.getTextSize(title, self.font, self.s_header, 2)
+        cv2.putText(canvas, title, (w_cam // 2 - tw // 2, y_head),
+                    self.font, self.s_header, self.colors["White"], 1, cv2.LINE_AA)
+                    
+        # Right "PPS: 8:0" (FPS)
+        fps_txt = f"FPS: {fps:.1f}"
+        (fw, _), _ = cv2.getTextSize(fps_txt, self.font, self.s_header, 2)
+        cv2.putText(canvas, fps_txt, (w_cam - fw - 30, y_head),
+                    self.font, self.s_header, self.colors["White"], 2, cv2.LINE_AA)
+
+        # --- CAMERA BORDER ---
+        # Image shows a thin yellow/orange border framing the view
         cam_w, cam_h = 1280, 960
         x_off = (w_cam - cam_w) // 2
         y_off = (h_cam - cam_h) // 2
         
-        # 1px Cyan Border (sehr technisch)
-        cv2.rectangle(canvas, 
-                      (x_off - 1, y_off - 1), 
-                      (x_off + cam_w, y_off + cam_h), 
-                      self.colors["Accent"], 1)
+        cv2.rectangle(canvas, (x_off, y_off), (x_off + cam_w, y_off + cam_h), 
+                      self.colors["Amber"], 1)
 
-        # 2. Detections
+        # --- DETECTIONS ---
         for det in detections:
             self.draw_single_detection(canvas, det)
 
-        # 3. Statusleiste (Navy Surface)
-        y_foot = h_cam - self.footer_h
+        # --- FOOTER CONTENT ---
+        # Style: "CAM-01 | LIVE ● | PAS 8 | 'AI ACTIVE | OBJECTS: 3"
+        y_foot = h_cam - 20
         
-        # Leiste: Etwas heller als Background für Trennung
-        cv2.rectangle(canvas, (0, y_foot), (w_cam, h_cam), self.colors["Surface"], -1)
+        # Helper for piping
+        cursor_x = 50
         
-        # Keine Linie, nur Farbflächen-Trennung (sehr modern)
-        # Optional: Ganz feine Linie in DimColor
-        cv2.line(canvas, (0, y_foot), (w_cam, y_foot), (50, 40, 30), 1)
+        def draw_segment(text, color=(255,255,255), bold=1):
+            nonlocal cursor_x
+            cv2.putText(canvas, text, (cursor_x, y_foot), 
+                        self.font, self.s_footer, color, bold, cv2.LINE_AA)
+            (w, _), _ = cv2.getTextSize(text, self.font, self.s_footer, bold)
+            cursor_x += w + 20
+            # Separator
+            cv2.putText(canvas, "|", (cursor_x, y_foot), 
+                        self.font, self.s_footer, self.colors["Grey"], 1, cv2.LINE_AA)
+            cursor_x += 20
 
-        # --- FOOTER INHALT ---
-        mid_y = y_foot + 28
+        draw_segment("CAM-01")
         
-        # A. System-Name (Links)
-        cv2.putText(canvas, "OCEAN SENTRY NAV", (30, mid_y), 
-                    self.font_main, 0.6, self.colors["TextLight"], 1, cv2.LINE_AA)
+        # LIVE with Dot
+        cv2.putText(canvas, "LIVE", (cursor_x, y_foot), self.font, self.s_footer, self.colors["White"], 1, cv2.LINE_AA)
+        (w, _), _ = cv2.getTextSize("LIVE", self.font, self.s_footer, 1)
+        cursor_x += w + 10
+        cv2.circle(canvas, (cursor_x, y_foot - 10), 6, self.colors["Amber"], -1) # Orange Dot
+        cursor_x += 20
+        cv2.putText(canvas, "|", (cursor_x, y_foot), self.font, self.s_footer, self.colors["Grey"], 1, cv2.LINE_AA)
+        cursor_x += 20
         
-        # B. Indikatoren
-        def draw_dot(cx, color):
-            cv2.circle(canvas, (cx, mid_y - 5), 4, color, -1)
-            # Schein-Effekt (Glow) für Marine-Look? (Zu teuer für CPU? Checken wir mal: 1 extra circle)
-            # cv2.circle(canvas, (cx, mid_y - 5), 7, color, 1) # Ring
-
-        # Live Status
-        draw_dot(340, self.colors["Success"])
-        cv2.putText(canvas, "LIVE FEED", (355, mid_y),
-                    self.font_tech, 1.0, self.colors["TextDim"], 1, cv2.LINE_AA)
-
         # AI Status
         ai_active = len(detections) > 0
-        ai_col = self.colors["Accent"] if ai_active else self.colors["TextDim"] # Cyan wenn aktiv
+        ai_txt = "'AI ACTIVE" if ai_active else "'AI IDLE"
+        draw_segment(ai_txt)
         
-        draw_dot(550, ai_col)
-        cv2.putText(canvas, "AI SCANNED", (565, mid_y),
-                    self.font_tech, 1.0, self.colors["TextDim"], 1, cv2.LINE_AA)
+        # Object Count
+        draw_segment(f"OBJECTS: {len(detections)}")
 
-        # C. FPS
-        fps_text = f"{fps:.1f} FPS"
-        (w_txt, _), _ = cv2.getTextSize(fps_text, self.font_tech, 1.2, 1)
-        x_fps = w_cam - 30 - w_txt
-        
-        cv2.putText(canvas, fps_text, (x_fps, mid_y), 
-                    self.font_tech, 1.2, self.colors["Accent"], 1, cv2.LINE_AA)
-
-        return canvas
 
     def draw_single_detection(self, canvas, det):
-        """Marine Style: Cyan Boxes, Slate Labels"""
+        """Solid Label Background (Black Text) + Thick Box"""
         l, t, r, b = det['box']
-        label = det['label']
+        label = det['label'].upper()
         score = det['score']
         
-        color = self.colors["Accent"] # Cyan
-        
-        # Scout
-        if score < 0.45:
-            color = self.colors["TextDim"]
-            label = "?"
-            
-        # 1. Box (1px)
-        cv2.rectangle(canvas, (l, t), (r, b), color, 1)
-        
-        # 2. Label
-        if label != "?":
-            txt = f"{label} {int(score*100)}%"
+        # Colors based on class (simulating the yellow/cyan mix in image)
+        # Plastic -> Cyan? Trash -> Yellow?
+        if label == "PLASTIC":
+            color = self.colors["Cyan"]
+        elif label == "METAL":
+            color = (0, 0, 255) # Red? Or sticking to ref image Palette
+            color = self.colors["Yellow"] 
         else:
-            txt = "?"
+            color = self.colors["Yellow"]
             
-        (tw, th), _ = cv2.getTextSize(txt, self.font_tech, 1.0, 1)
+        # Scout override
+        if score < 0.45:
+            color = self.colors["Grey"]
         
-        # Label Background (Surface Navy)
-        cv2.rectangle(canvas, (l, t - th - 8), (l + tw + 8, t), self.colors["Background"], -1)
+        # 1. Box
+        cv2.rectangle(canvas, (l, t), (r, b), color, 2)
         
-        # Text in Cyan oder Hellweiß?
-        # Cyan Text auf Navy wirkt sehr "Tron" / Marine.
-        cv2.putText(canvas, txt, (l + 4, t - 4), 
-                    self.font_tech, 1.0, color, 1, cv2.LINE_AA)
+        # 2. Label (Solid Background)
+        label_txt = f"{label} {score:.0%}"
+        (tw, th), base = cv2.getTextSize(label_txt, self.font, self.s_label, 2)
         
+        # Draw filled box ABOVE the rect
+        # Ensure it fits
+        bg_l = l
+        bg_t = t - th - 10
+        bg_r = l + tw + 10
+        bg_b = t
+        
+        if bg_t < 0: # If box at top edge, draw label inside
+            bg_t = t
+            bg_b = t + th + 10
+            
+        cv2.rectangle(canvas, (bg_l, bg_t), (bg_r, bg_b), color, -1) # Filled
+        
+        # Text (Black)
+        text_y = bg_b - 5
+        cv2.putText(canvas, label_txt, (bg_l + 5, text_y), 
+                    self.font, self.s_label, self.colors["Black"], 2, cv2.LINE_AA)
+
     def draw_offline_screen(self, canvas):
-        """Offline Screen in Navy"""
+        canvas[:] = 0
+        text = "NO SIGNAL"
+        (tw, th), _ = cv2.getTextSize(text, self.font, 1.5, 2)
         h, w, _ = canvas.shape
-        canvas[:] = self.colors["Background"]
-        
-        text = "SONAR OFFLINE"
-        (tw, th), _ = cv2.getTextSize(text, self.font_main, 1.5, 2)
-        cx, cy = w // 2, h // 2
-        
-        cv2.putText(canvas, text, (cx - tw//2, cy + th//2), 
-                    self.font_main, 1.5, self.colors["TextDim"], 2, cv2.LINE_AA)
-        
-        return canvas
+        cv2.putText(canvas, text, (w//2 - tw//2, h//2), self.font, 1.5, (100,100,100), 2)
