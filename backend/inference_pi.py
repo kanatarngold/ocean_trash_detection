@@ -75,15 +75,15 @@ def main():
     fps = 0.0
 
     print("🚀 System bereit! Drücke 'q' zum Beenden.")
+    
+    # Store last detections to reuse them between inference frames
+    last_detections = []
 
     while True:
         # Frame Capture
         if using_picamera:
-            # Capture array from Picamera2
-            # wait=True to sync with sensor
             frame = picam2.capture_array()
         else:
-            # OpenCV Fallback
             ret, frame = cap.read()
             if not ret:
                 print("Fehler beim Lesen des Frames.")
@@ -93,23 +93,29 @@ def main():
         # Resize if needed (Picamera already gives 640x480)
         # frame = cv2.resize(frame, (640, 480))
 
-        # Inference
-        detections = detector.detect(frame, threshold=0.45, enhance=True) # Enhance active by defaultabilisierung
-        detections = smoother.update(detections)
+        # Inference only every 3rd frame (Boosts UI FPS x3)
+        if frame_count % 3 == 0:
+            detections = detector.detect(frame, threshold=0.45, enhance=True)
+            detections = smoother.update(detections)
+            last_detections = detections
+        else:
+            # Reuse old detections for smooth UI
+            detections = last_detections
+
+        # 5. Zeichnen (Professional Overlay)
+        frame = visualizer.draw(frame, detections, fps)
+        
+        # Anzeigen
+        cv2.imshow('Ocean Sentry AI (Pi Edition)', frame)
 
         # FPS Stats
         frame_count += 1
         elapsed = time.time() - start_time
         if elapsed > 1.0:
             fps = frame_count / elapsed
+            print(f"FPS: {fps:.2f} | Objekte: {len(detections)}")
             frame_count = 0
             start_time = time.time()
-
-        # 5. Zeichnen (Professional Overlay)
-        frame = visualizer.draw_tracker_overlay(frame, detections, fps)
-
-        # Anzeigen
-        cv2.imshow('Ocean Trash Detector', frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break

@@ -14,7 +14,8 @@ import os
 
 class TrashDetector:
     def __init__(self, model_path="models/model.tflite", label_path="models/labels.txt"):
-        self.interpreter = Interpreter(model_path=model_path)
+        # Enable 4 threads for Quad-Core Pi
+        self.interpreter = Interpreter(model_path=model_path, num_threads=4)
         self.interpreter.allocate_tensors()
         
         self.input_details = self.interpreter.get_input_details()
