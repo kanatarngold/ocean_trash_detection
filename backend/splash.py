@@ -48,11 +48,10 @@ class SplashScreen:
         self.status_label.pack(side="bottom", pady=20)
 
     def launch_main_app(self):
-        # Start the heavy inference script
-        # We use Popen to readstdout line by line
+        # Start the heavy inference script with -u for unbuffered output
         creationflags = 0
         self.process = subprocess.Popen(
-            [sys.executable, "inference_pi.py"],
+            [sys.executable, "-u", "inference_pi.py"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             universal_newlines=True,
@@ -65,26 +64,27 @@ class SplashScreen:
         t.daemon = True
         t.start()
 
-    def monitor_output(self, timeout=30):
+    def monitor_output(self, timeout=45):
         # Read lines until we see "System bereit" or timeout
         start = time.time()
-        ready = False
         
         while True:
             line = self.process.stdout.readline()
             if not line:
                 break
             
-            print(f"[Launcher] {line.strip()}") # Forward to internal log
-            
             # Simple keyword matching to update UI status
             if "TensorFlow" in line:
                  self.update_status("Loading TensorFlow Engines...")
             if "Picamera" in line:
-                 self.update_status("Accessing Camera Sensors...")
-            if "System bereit" in line or "Ocean Sentry AI" in line:
-                # SUCCESS!
-                ready = True
+                 self.update_status("Accessing High-Speed Camera...")
+            
+            # EXIT CONDITIONS:
+            # 1. "System bereit" (Normal case)
+            # 2. "FPS:" (Safety net: Inference loop already running)
+            # 3. "Ocean Sentry" (Early header print)
+            if "System bereit" in line or "FPS:" in line:
+                self.update_status("Launch sequence complete.")
                 break
                 
             if time.time() - start > timeout:
