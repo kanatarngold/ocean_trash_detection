@@ -1,114 +1,133 @@
 import cv2
 import numpy as np
-import time
 
 class Visualizer:
     def __init__(self):
-        # Professional Color Palette (BGR format for OpenCV)
-        # Plastic: Neon Blue
-        # Metal: Industrial Orange
-        # Glass: Cyan / Ice
-        # Trash: Warning Red
+        # --- 1. FARBKONZEPT (Industrial) ---
+        # Format: BGR (OpenCV uses Blue-Green-Red)
         self.colors = {
-            "Plastic": (255, 191, 0),   # Deep Sky Blue
-            "Metal": (0, 140, 255),     # Orange
-            "Glass": (255, 255, 0),     # Cyan
-            "Trash": (0, 0, 255),       # Red
-            "Scout": (120, 120, 120),   # Gray (for low confidence)
-            "Unknown": (128, 128, 128)  # Gray
+            "Background": (26, 26, 26),     # #1A1A1A (Dark Neutral Grey)
+            "Accent":     (0, 215, 244),    # #F4D700 (Industrial Yellow)
+            "Text":       (220, 220, 220),  # #DCDCDC (Light Grey)
+            "Success":    (50, 205, 50),    # #32CD32 (Lime Green)
+            "Alarm":      (50, 50, 220),    # #DC3232 (Crimson Red)
+            "Grid":       (60, 60, 60)      # #3C3C3C (Subtle Grid Lines)
         }
         
-        # Font settings for high-tech look (Anti-aliased)
-        self.font = cv2.FONT_HERSHEY_TRIPLEX
-        self.font_scale = 0.6
-        self.thickness = 1
-        
-        # Dashboard UI
-        self.header_height = 60
+        # --- 2. TYPOGRAFIE ---
+        # Neutral Sans-Serif, gut lesbar
+        self.font = cv2.FONT_HERSHEY_SIMPLEX 
+        self.font_scale_ui = 0.5
+        self.font_scale_label = 0.6
+        self.thick_ui = 1
+        self.thick_label = 2
 
-    def draw_tracker_overlay(self, frame, detections, fps):
-        """Draws a professional HUD overlay (HD Ready)"""
-        h, w, _ = frame.shape
+    def draw_tracker_overlay(self, canvas, detections, fps):
+        """
+        Zeichnet das komplette 'Industrial Dashboard' auf den 1920x1080 Canvas.
+        Erwartet: canvas (1920x1080), detections (skaliert), fps (float)
+        """
+        h_canvas, w_canvas, _ = canvas.shape # Sollte 1080x1920 sein
         
-        # Dynamic Scaling for HD (1280px) vs SD (640px)
-        scale = 1.0
-        if w > 1000:
-            scale = 2.0
-            
-        header_h = int(60 * scale)
-        font_sc = self.font_scale * scale * 0.9
-        thick = max(1, int(self.thickness * scale))
-
-        # 1. Solid Black Header (Requested by User)
-        cv2.rectangle(frame, (0, 0), (w, header_h), (0, 0, 0), -1)
+        # --- STEP 1: HINTERGRUND & RAHMEN ---
+        # Falls Canvas nicht schwarz ist, füllen wir die Ränder auf
+        # (Wird normalerweise vom Inference-Skript gemacht, aber sicher ist sicher)
+        # Hier zeichnen wir nur den Rahmen um den Kamera-Bereich
         
-        # Header Text
-        cv2.putText(frame, "OCEAN SENTRY AI", (int(20*scale), int(35*scale)), cv2.FONT_HERSHEY_DUPLEX, font_sc * 1.2, (255, 255, 255), thick)
-        cv2.putText(frame, "LIVE SURVEILLANCE", (int(20*scale), int(52*scale)), self.font, font_sc * 0.7, (0, 255, 0), thick)
+        # Kamera-Bereich: 1280x960, zentriert
+        cam_w, cam_h = 1280, 960
+        x_off = (w_canvas - cam_w) // 2
+        y_off = (h_canvas - cam_h) // 2
         
-        # Fullscreen Hint
-        cv2.putText(frame, "[F] Fullscreen", (int(350*scale), int(35*scale)), self.font, font_sc * 0.8, (100, 100, 100), thick)
+        # Dezenter Industrierahmen (2px Gelb)
+        cv2.rectangle(canvas, 
+                      (x_off - 2, y_off - 2), 
+                      (x_off + cam_w + 2, y_off + cam_h + 2), 
+                      self.colors["Accent"], 2)
         
-        # FPS Counter (Right side)
-        cv2.putText(frame, f"FPS: {fps:.1f}", (w - int(150*scale), int(35*scale)), self.font, font_sc, (200, 200, 200), thick)
-        
-        # 2. Draw Detections
+        # --- STEP 2: DETECTIONS (Im Kamera-Bereich) ---
         for det in detections:
-            frame = self.draw_single_detection(frame, det, scale)
+            self.draw_single_detection(canvas, det)
 
-        # 3. Solid Black Footer (Status Line)
-        cv2.rectangle(frame, (0, h - int(40*scale)), (w, h), (0, 0, 0), -1)
+        # --- STEP 3: STATUSLEISTE (Footer) ---
+        # Fixe Höhe am unteren Rand: 60px
+        bar_h = 60
+        bar_y = h_canvas - bar_h
         
-        if not detections:
-            cv2.putText(frame, "SCANNING SECTOR...", (w//2 - int(100*scale), h - int(12*scale)), self.font, font_sc, (0, 255, 0), thick, cv2.LINE_AA)
-        else:
-            stats = f"DETECTED: {len(detections)} OBJECTS"
-            cv2.putText(frame, stats, (w//2 - int(100*scale), h - int(12*scale)), self.font, font_sc, (0, 200, 255), thick, cv2.LINE_AA)
+        # Leiste Hintergrund (Dunkelgrau)
+        cv2.rectangle(canvas, (0, bar_y), (w_canvas, h_canvas), self.colors["Background"], -1)
+        # Trennlinie oben (Gelb)
+        cv2.line(canvas, (0, bar_y), (w_canvas, bar_y), self.colors["Accent"], 2)
 
-        return frame
+        # status metrics helper
+        y_text = bar_y + 40
+        
+        # A) System ID (Links)
+        cv2.putText(canvas, "SYSTEM: OCEAN SENTRY MK-1", (40, y_text), 
+                    self.font, 0.7, self.colors["Accent"], 2, cv2.LINE_AA)
 
-    def draw_single_detection(self, frame, det, scale=1.0):
+        # B) Live Status (Mitte Links)
+        cv2.putText(canvas, "STATUS: ONLINE", (500, y_text), 
+                    self.font, 0.6, self.colors["Success"], 1, cv2.LINE_AA)
+                    
+        # C) AI Metrics (Mitte Rechts)
+        obj_count = len(detections)
+        ai_color = self.colors["Text"]
+        if obj_count > 0:
+            ai_color = self.colors["Accent"] # Gelb wenn Objekte da sind
+            
+        cv2.putText(canvas, f"DETECTED OBJECTS: {obj_count}", (1100, y_text),
+                    self.font, 0.6, ai_color, 1, cv2.LINE_AA)
+
+        # D) FPS Counter (Rechts)
+        fps_color = self.colors["Text"]
+        if fps < 5.0: fps_color = self.colors["Alarm"] # Rot bei Lag
+        
+        cv2.putText(canvas, f"FPS: {fps:.1f}", (1700, y_text),
+                    self.font, 0.6, fps_color, 1, cv2.LINE_AA)
+
+        return canvas
+
+    def draw_single_detection(self, canvas, det):
+        """Minimalistische Boxen für Industrial Look"""
         left, top, right, bottom = det['box']
         label = det['label']
         score = det['score']
         
-        # Scaling
-        font_sc = self.font_scale * scale
-        thick = max(1, int(self.thickness * scale))
+        # Farbe basierend auf Label (Hier halten wir es einheitlich "Industrial"?)
+        # Oder nutzen wir Akzentfarbe für alles? 
+        # User sagte: "industrielles Gelb-auf-Schwarz als Akzent"
+        # -> Wir machen alle Boxen Gelb für Uniformität, oder subtil unterschiedlich.
+        # Lass uns Klassen-spezifisch bleiben, aber gedämpft.
         
-        # --- SCOUT MODE ---
-        is_scout = False
+        color = self.colors["Accent"] # Default Yellow
+        if label == "Glass": color = (200, 200, 200) # Whiteish
+        elif label == "Metal": color = (70, 70, 180) # Rusty red/blue?
+        elif label == "Plastic": color = (0, 165, 255) # Orange
+        
+        # Scout Mode Override (Low conf)
         if score < 0.45:
-            is_scout = True
-            color = self.colors["Scout"]
-            label_text = f"? ({score:.0%})" # Just a question mark
-        else:
-            color = self.colors.get(label, self.colors["Unknown"])
-            label_text = f"{label} {score:.0%}"
+            color = (100, 100, 100) # Dark Grey
+            label = "?"
 
-        # 1. Draw Transparent Fill
-        box_overlay = frame.copy()
-        cv2.rectangle(box_overlay, (left, top), (right, bottom), color, -1)
+        # 1. Feiner Rahmen (2px)
+        cv2.rectangle(canvas, (left, top), (right, bottom), color, 2)
         
-        alpha_box = 0.1 if is_scout else 0.2  # Less visible if unsure
-        frame = cv2.addWeighted(box_overlay, alpha_box, frame, 1 - alpha_box, 0)
+        # 2. Label Tag (Pill Style, but rectangular for Industrial)
+        label_text = f"{label} {score:.0%}"
+        (text_w, text_h), _ = cv2.getTextSize(label_text, self.font, 0.5, 1)
         
-        # 2. Draw Solid Border
-        box_thick = 1 if is_scout else thick
-        cv2.rectangle(frame, (left, top), (right, bottom), color, box_thick)
-        
-        # 3. Draw Label Pill (Top Left)
-        (text_w, text_h), baseline = cv2.getTextSize(label_text, self.font, font_sc, thick)
-        
-        # Draw Label Background
-        pill_pad = int(10 * scale)
-        cv2.rectangle(frame, (left, top - text_h - pill_pad), (left + text_w + pill_pad, top), color, -1)
-        
-        # Draw Text
-        text_color = (255, 255, 255)
-        if label == "Glass" and not is_scout: 
-            text_color = (0, 0, 0)
-            
-        cv2.putText(frame, label_text, (left + int(5*scale), top - int(5*scale)), self.font, font_sc, text_color, thick, cv2.LINE_AA)
-        
-        return frame
+        # Background Rect (Black)
+        cv2.rectangle(canvas, 
+                      (left, top - 25), 
+                      (left + text_w + 10, top), 
+                      (10, 10, 10), -1) # Almost black fill
+        # Border for Label (Same color as box)
+        cv2.rectangle(canvas, 
+                      (left, top - 25), 
+                      (left + text_w + 10, top), 
+                      color, 1)
+
+        # Text (Yellow/Color)
+        cv2.putText(canvas, label_text, (left + 5, top - 8), 
+                    self.font, 0.5, color, 1, cv2.LINE_AA)
