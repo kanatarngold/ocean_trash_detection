@@ -1,24 +1,4 @@
-Aluminium foil
-Broken glass
-Cigarette
-Clear plastic bottle
-Corrugated carton
-Crisp packet
-Disposable plastic cup
-Drink can
-Glass bottle
-Metal bottle cap
-Normal paper
-Other carton
-Other plastic bottle
-Other plastic wrapper
-Other plastic
-Paper cup
-Plastic bottle cap
-Plastic film
-Plastic lid
-Plastic straw
-Pop tab
-Single-use carrier bag
-Styrofoam piece
-Unlabeled litter
+Glass
+Metal
+Plastic
+Trash

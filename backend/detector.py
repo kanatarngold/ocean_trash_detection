@@ -1,11 +1,16 @@
 import cv2
 import numpy as np
-import tensorflow as tf
+try:
+    import tensorflow as tf
+    Interpreter = tf.lite.Interpreter
+except ImportError:
+    from tflite_runtime.interpreter import Interpreter
+
 import os
 
 class TrashDetector:
     def __init__(self, model_path="models/model.tflite", label_path="models/labels.txt"):
-        self.interpreter = tf.lite.Interpreter(model_path=model_path)
+        self.interpreter = Interpreter(model_path=model_path)
         self.interpreter.allocate_tensors()
         
         self.input_details = self.interpreter.get_input_details()
@@ -31,7 +36,13 @@ class TrashDetector:
             self.labels = [line.strip() for line in f.readlines()]
         print(f"DEBUG: Loaded {len(self.labels)} labels. First 5: {self.labels[:5]}")
 
-    def detect(self, frame, threshold=0.5, whitelist=None):
+    def detect(self, frame, threshold=0.5, enhance=True):
+        """
+        enhance=True: Activates 'Crystal Vision' (CLAHE) for better detection in murky water.
+        """
+        if enhance:
+            frame = self.apply_enhancement(frame)
+
         frame_resized = cv2.resize(frame, (self.width, self.height))
         input_data = np.expand_dims(frame_resized, axis=0)
         
@@ -43,6 +54,15 @@ class TrashDetector:
 
         self.interpreter.set_tensor(self.input_details[0]['index'], input_data)
         self.interpreter.invoke()
+        
+        # --- FACE FILTER (Identity Shield) ---
+        if not hasattr(self, 'face_cascade'):
+             cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+             self.face_cascade = cv2.CascadeClassifier(cascade_path)
+        
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = self.face_cascade.detectMultiScale(gray, 1.1, 4)
+        # -------------------------------------
 
         detections = []
         
@@ -91,7 +111,8 @@ class TrashDetector:
                 class_ids.append(class_id)
                 
             # Apply NMS (Non-Maximum Suppression)
-            indices = cv2.dnn.NMSBoxes(boxes, confidences, threshold, 0.45)
+            # Threshold 0.65 allows more overlap (e.g. bottle behind bottle)
+            indices = cv2.dnn.NMSBoxes(boxes, confidences, threshold, 0.65)
             
             if len(indices) > 0:
                 for i in indices.flatten():
@@ -99,15 +120,32 @@ class TrashDetector:
                     left, top, width, height = box[0], box[1], box[2], box[3]
                     label = self.labels[class_ids[i]] if class_ids[i] < len(self.labels) else "Unknown"
                     
-                    # Apply mapping
                     if label in self.label_map:
                         label = self.label_map[label]
                     
-                    detections.append({
-                        "box": (left, top, left + width, top + height),
-                        "label": label,
-                        "score": confidences[i]
-                    })
+                    det_box = (left, top, left + width, top + height)
+                    
+                    # --- FACE FILTER CHECK ---
+                    is_face = False
+                    for (fx, fy, fw, fh) in faces:
+                        f_box = (fx, fy, fx+fw, fy+fh)
+                        xA = max(det_box[0], f_box[0])
+                        yA = max(det_box[1], f_box[1])
+                        xB = min(det_box[2], f_box[2])
+                        yB = min(det_box[3], f_box[3])
+                        interArea = max(0, xB - xA) * max(0, yB - yA)
+                        objArea = (det_box[2] - det_box[0]) * (det_box[3] - det_box[1])
+                        if interArea > 0.3 * objArea: # 30% overlap with face -> ignore
+                           is_face = True
+                           break
+                    # -------------------------
+                    
+                    if not is_face:
+                        detections.append({
+                            "box": det_box,
+                            "label": label,
+                            "score": confidences[i]
+                        })
 
         else:
             # Legacy SSD MobileNet Logic
@@ -180,6 +218,28 @@ class TrashDetector:
             cv2.putText(frame, label, (left, top), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
         
         return frame
+
+    def apply_enhancement(self, frame):
+        """
+        'Crystal Vision': Applies CLAHE (Contrast Limited Adaptive Histogram Equalization)
+        to specific channels to enhance contrast in murky/brown water without distorting colors too much.
+        """
+        # Convert to LAB color space (L = Lightness, A/B = Colors)
+        lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        
+        # Apply CLAHE to L-channel (Lightness) only
+        # clipLimit=2.0 -> Moderate contrast enhancement
+        # tileGridSize=(8,8) -> Local area size
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        cl = clahe.apply(l)
+        
+        # Merge back
+        limg = cv2.merge((cl, a, b))
+        
+        # Convert back to BGR
+        final = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+        return final
 
 class EnsembleDetector:
     """Combines detections from multiple models"""

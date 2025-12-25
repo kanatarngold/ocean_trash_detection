@@ -1,0 +1,15 @@
+names:
+- Glass
+- Metal
+- Plastic
+- Trash
+nc: 4
+roboflow:
+  license: CC BY 4.0
+  project: ocean-waste
+  url: https://universe.roboflow.com/research-7dj8h/ocean-waste/dataset/1
+  version: 1
+  workspace: research-7dj8h
+test: ../test/images
+train: ../train/images
+val: ../valid/images
