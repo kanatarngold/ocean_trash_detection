@@ -62,6 +62,7 @@ class Visualizer:
 
         return frame
 
+    def draw_single_detection(self, frame, det):
         left, top, right, bottom = det['box']
         label = det['label']
         score = det['score']

@@ -1,10 +1,14 @@
 import cv2
 import numpy as np
 try:
+    # TRY LITE RUNTIME FIRST (Better for Pi)
+    from tflite_runtime.interpreter import Interpreter
+    print("DEBUG: Using tflite_runtime (Lightweight) ✅")
+except ImportError:
+    # Fallback to full TensorFlow (slower, heavier)
+    print("DEBUG: tflite_runtime not found, falling back to full TensorFlow... ⚠️")
     import tensorflow as tf
     Interpreter = tf.lite.Interpreter
-except ImportError:
-    from tflite_runtime.interpreter import Interpreter
 
 import os
 
