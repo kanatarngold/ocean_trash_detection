@@ -78,6 +78,11 @@ def main():
     
     # Store last detections to reuse them between inference frames
     last_detections = []
+    
+    # Create window explicitly to allow moving/resizing/closing
+    window_name = 'Ocean Sentry AI (Pi Edition)'
+    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+    cv2.resizeWindow(window_name, 640, 480)
 
     while True:
         # Frame Capture
@@ -105,7 +110,11 @@ def main():
         frame = visualizer.draw_tracker_overlay(frame, detections, fps)
         
         # Display
-        cv2.imshow('Ocean Sentry AI (Pi Edition)', frame)
+        cv2.imshow(window_name, frame)
+        
+        # Check if window was closed by clicking 'X'
+        if cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) < 1:
+            break
 
         # FPS Stats
         frame_count += 1
