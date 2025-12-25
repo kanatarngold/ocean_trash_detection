@@ -7,8 +7,8 @@ echo "--------------------------------"
 # 1. Navigate to the correct directory
 cd /home/marine/ocean_trash_detection/backend
 
-# 2. Run the AI (System Python)
-python3 inference_pi.py
+# 2. Run the AI (Launcher with Splash Screen)
+python3 splash.py
 
 # 3. Wait before closing so user can read errors if any
 echo "--------------------------------"
