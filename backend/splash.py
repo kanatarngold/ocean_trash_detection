@@ -82,23 +82,23 @@ class SplashScreen:
             # EXIT CONDITIONS:
             # 1. "System bereit" (Normal case)
             # 2. "FPS:" (Safety net: Inference loop already running)
-            # 3. "Ocean Sentry" (Early header print)
-            if "System bereit" in line or "FPS:" in line:
+            if ("System bereit" in line or "FPS:" in line) and self.root:
                 self.update_status("Launch sequence complete.")
-                break
-                
-            if time.time() - start > timeout:
-                break
+                # Trigger window destruction safely
+                self.root.after(1000, self.destroy_splash)
+            
+            # Check timeout only if UI is still active
+            if self.root and time.time() - start > timeout:
+                self.root.quit() # Force quit if timeout
 
-        # Wait a tiny bit for the window to actually appear
-        time.sleep(2.0) 
-        
-        # Destroy the splash window but keep this script running
-        # because it is the parent of the inference process
-        self.root.destroy()
-        
-        # Wait for the main app to finish (User presses 'q')
-        self.process.wait()
+        # Process finished
+        if self.root:
+           self.root.destroy()
+
+    def destroy_splash(self):
+        if self.root:
+            self.root.destroy()
+            self.root = None # Mark as destroyed so loop knows
 
     def update_status(self, text):
         # Check if window exists before updating
@@ -107,6 +107,8 @@ class SplashScreen:
                 self.status_label.config(text=text)
             except:
                 pass
+
+
 
     def run(self):
         # Start the app launch in a separate thread so UI doesn't freeze
