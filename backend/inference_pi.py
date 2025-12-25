@@ -10,9 +10,10 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 try:
     from detector import TrashDetector
     from visualizer import Visualizer 
-    from tracker import DetectionSmoother # RE-ENABLED
+    from tracker import DetectionSmoother 
+    from sonar import Sonar
 except ImportError:
-    print("Fehler: konnte 'detector.py' nicht finden. Stelle sicher, dass alle Dateien im selben Ordner sind.")
+    print("Fehler: Module nicht gefunden.")
     sys.exit(1)
 
 # Konfiguration
@@ -85,6 +86,9 @@ def main():
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
     cv2.resizeWindow(window_name, 640, 480)
 
+    # Audio Init
+    sonar = Sonar()
+
     # 1. Pre-allocate Cinema Mode Canvas (Optimization)
     # create once, reuse forever.
     canvas = np.zeros((1080, 1920, 3), dtype=np.uint8)
@@ -108,6 +112,10 @@ def main():
                 detections = detector.detect(frame, threshold=0.45, enhance=True)
                 detections = smoother.update(detections)
                 last_detections = detections
+                
+                # SONAR FEEDBACK
+                if len(detections) > 0:
+                    sonar.ping()
             else:
                 detections = last_detections
 
