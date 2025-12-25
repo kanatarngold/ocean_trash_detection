@@ -119,8 +119,16 @@ def main():
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-    cap.release()
+    if using_picamera:
+        try:
+            picam2.stop()
+        except:
+            pass
+    elif 'cap' in locals():
+        cap.release()
+    
     cv2.destroyAllWindows()
+    print("👋 Programm beendet.")
 
 if __name__ == '__main__':
     main()
