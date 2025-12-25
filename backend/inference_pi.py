@@ -41,7 +41,7 @@ def main():
     try:
         # We try to import Picamera2. 
         # CAUTION: It must be installed via apt: sudo apt install python3-picamera2
-        from picamera2 import Picamera2, Picamera2Config
+        from picamera2 import Picamera2
         print("📷 Starte Picamera2 (Native Mode)...")
         
         # Configure camera
