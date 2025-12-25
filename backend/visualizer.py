@@ -3,165 +3,147 @@ import numpy as np
 
 class Visualizer:
     def __init__(self):
-        # --- 1. FARBKONZEPT (Industrial Precision) ---
-        # Alle Farben entsättigt und augenschonend für Dauerbetrieb.
-        # Format: BGR (Blue-Green-Red)
+        # --- FARBKONZEPT (Strict Industrial) ---
+        # BGR Werte
         self.colors = {
-            "Background": (30, 30, 30),     # #1E1E1E (Anthrazit, neutral)
-            "Surface":    (45, 45, 45),     # #2D2D2D (UI Flächen)
-            "Accent":     (21, 195, 229),   # #E5C315 (Industrial Yellow, BGR: 21,195,229)
-            "TextMain":   (204, 204, 204),  # #CCCCCC (Hellgrau/Silber)
-            "TextDim":    (150, 150, 150),  # #969696 (Dunkelgrau/Dim)
-            "StatusGood": (106, 187, 102),  # #66BB6A (Sanftes Indikator-Grün)
-            "StatusWarn": (60, 130, 240),   # #F0823C (Sanftes Orange)
-            "StatusBad":  (80, 80, 220)     # #DC5050 (Sanftes Rot)
+            "Background": (30, 30, 30),     # #1E1E1E Anthrazit (Basis-Hintergrund)
+            "Surface":    (40, 40, 40),     # #282828 Leichte Variation für Footer
+            "Accent":     (21, 195, 229),   # #E5C315 Caterpillar-Gelb (Markierungen)
+            "TextLight":  (230, 230, 230),  # #E6E6E6 Fast Weiß (Haupttext)
+            "TextDim":    (160, 160, 160),  # #A0A0A0 Grau (Metadaten)
+            "Alert":      (50, 50, 200),    # #C83232 Rot (Nur für Status-Dots, nicht Hintergrund)
+            "Green":      (80, 180, 80)     # #50B450 Grün (Status OK)
         }
         
-        # --- 2. TYPOGRAFIE ---
-        # Simplex für UI (Clean), Plain für technische Daten
-        self.font_ui = cv2.FONT_HERSHEY_SIMPLEX 
+        # --- TYPOGRAFIE ---
+        # Inter/Roboto Ersatz -> Hershey Sans-Serif
+        self.font_main = cv2.FONT_HERSHEY_SIMPLEX
         self.font_tech = cv2.FONT_HERSHEY_PLAIN
         
-        # Visuelle Konstanten
-        self.grid_size = 8
-        self.footer_height = 40  # Schlanke Statusleiste
-        
-    def hex_to_bgr(self, hex_val):
-        """Hilfsmethode, falls man Hex nutzen will (hier manuell gemacht)"""
-        pass
+        # Layout Metriken
+        self.footer_h = 42
 
     def draw_tracker_overlay(self, canvas, detections, fps):
         """
-        Zeichnet das 'Precision Dashboard' auf den Canvas.
-        Fokus: Ruhe, Ordnung, Lesbarkeit.
+        Zeichnet das finale Layout.
+        WICHTIG: Erwartet, dass 'canvas' bereits mit Background-Farbe (30,30,30) gefüllt ist!
         """
-        h_canvas, w_canvas, _ = canvas.shape
+        h_cam, w_cam, _ = canvas.shape
         
-        # --- BACKGROUND RESET ---
-        # Wir überschreiben den Rand mit unserem exakten Industrie-Grau
-        # (Da inference_pi.py nur schwarz macht, färben wir hier nach)
-        
-        # Kamera-Zentrum berechnen (1280x960)
+        # 1. Kamera-Container Design
+        # Wir zeichnen den 1px Rahmen um den zentralen Bereich (1280x960)
+        # Offset berechnen (Kamera ist 1280x960)
         cam_w, cam_h = 1280, 960
-        x_off = (w_canvas - cam_w) // 2
-        y_off = (h_canvas - cam_h) // 2
+        x_off = (w_cam - cam_w) // 2
+        y_off = (h_cam - cam_h) // 2
         
-        # Linker Rand
-        cv2.rectangle(canvas, (0, 0), (x_off, h_canvas), self.colors["Background"], -1)
-        # Rechter Rand
-        cv2.rectangle(canvas, (x_off + cam_w, 0), (w_canvas, h_canvas), self.colors["Background"], -1)
-        # Oberer Rand
-        cv2.rectangle(canvas, (0, 0), (w_canvas, y_off), self.colors["Background"], -1)
-        # Unterer Rand (bis Footer)
-        cv2.rectangle(canvas, (0, y_off + cam_h), (w_canvas, h_canvas - self.footer_height), self.colors["Background"], -1)
-
-        # --- KAMERA RAHMEN (1px Akzent) ---
+        # Der Bereich außerhalb der Kamera ist bereits "Background", 
+        # wir zeichnen nur den feinen Rahmen.
+        # Exakt 1px.
         cv2.rectangle(canvas, 
                       (x_off - 1, y_off - 1), 
-                      (x_off + cam_w + 1, y_off + cam_h + 1), 
+                      (x_off + cam_w, y_off + cam_h), 
                       self.colors["Accent"], 1)
 
-        # --- DETECTIONS ---
-        # Falls keine Detections da sind, aber Kamera läuft -> Clean lassen
+        # 2. Detections
         for det in detections:
             self.draw_single_detection(canvas, det)
 
-        # --- STATUSLEISTE (Footer) ---
-        footer_y = h_canvas - self.footer_height
+        # 3. Statusleiste (Footer)
+        # Separierter Bereich unten
+        y_foot = h_cam - self.footer_h
         
-        # Hintergrund Leiste
-        cv2.rectangle(canvas, 
-                      (0, footer_y), 
-                      (w_canvas, h_canvas), 
-                      self.colors["Surface"], -1)
-        
-        # Trennlinie (Top Border of Footer)
-        cv2.line(canvas, (0, footer_y), (w_canvas, footer_y), (60, 60, 60), 1)
+        # Hintergrund Footer (Surface)
+        cv2.rectangle(canvas, (0, y_foot), (w_cam, h_cam), self.colors["Surface"], -1)
+        # Haarlinie oben (Accent) - nur ganz dezent
+        # cv2.line(canvas, (0, y_foot), (w_cam, y_foot), self.colors["Accent"], 1) 
+        # User wollte: "Gelb wird nur für Akzente verwendet... keine zufälligen Linien".
+        # Eine Linie als Trennung ist okay, aber vielleicht zu dominant? 
+        # Wir lassen sie weg für maximalen Minimalismus oder machen sie dunkelgrau.
+        cv2.line(canvas, (0, y_foot), (w_cam, y_foot), (60, 60, 60), 1)
 
-        # --- STATUS ELEMENTE (Grid Aligned) ---
-        # Vertikal zentriert im Footer
-        mid_y = footer_y + 25 
+        # --- INHALT FOOTER ---
+        mid_y = y_foot + 28
         
-        # 1. System Name (Links)
-        cv2.putText(canvas, "OCEAN SENTRY", (self.grid_size * 4, mid_y), 
-                    self.font_ui, 0.5, self.colors["TextMain"], 1, cv2.LINE_AA)
+        # A. System-Name (Links)
+        # Großbuchstaben, Clean
+        cv2.putText(canvas, "OCEAN SENTRY", (30, mid_y), 
+                    self.font_main, 0.6, self.colors["TextLight"], 1, cv2.LINE_AA)
         
-        # 2. Live Indikator (Links)
-        self._draw_status_dot(canvas, self.grid_size * 25, mid_y - 5, self.colors["StatusGood"])
-        cv2.putText(canvas, "LIVE FEED", (self.grid_size * 28, mid_y), 
+        # B. Status Indikatoren (Mitte / Rechts-orientiert)
+        
+        # Dot Helper
+        def draw_dot(cx, color):
+            cv2.circle(canvas, (cx, mid_y - 5), 4, color, -1)
+
+        # Live Feed Status
+        draw_dot(300, self.colors["Green"])
+        cv2.putText(canvas, "SIGNAL ACTIVE", (315, mid_y),
                     self.font_tech, 1.0, self.colors["TextDim"], 1, cv2.LINE_AA)
 
-        # 3. AI Status (Mitte)
+        # AI Status
         ai_active = len(detections) > 0
-        ai_col = self.colors["StatusGood"] if ai_active else self.colors["TextDim"]
-        ai_txt = "AI ACTIVE" if ai_active else "AI IDLE"
-        
-        # Dot
-        self._draw_status_dot(canvas, w_canvas // 2 - 60, mid_y - 5, ai_col)
-        # Text
-        cv2.putText(canvas, ai_txt, (w_canvas // 2 - 40, mid_y), 
-                    self.font_tech, 1.0, self.colors["TextMain"], 1, cv2.LINE_AA)
-
-        # 4. FPS (Rechts)
-        fps_txt = f"FPS: {fps:.1f}"
-        (tw, th), _ = cv2.getTextSize(fps_txt, self.font_tech, 1.0, 1)
-        fps_x = w_canvas - (self.grid_size * 4) - tw
-        
-        # FPS Dot Color
-        fps_col = self.colors["StatusGood"]
-        if fps < 10: fps_col = self.colors["StatusWarn"]
-        if fps < 5: fps_col = self.colors["StatusBad"]
-        
-        self._draw_status_dot(canvas, fps_x - 15, mid_y - 5, fps_col)
-        cv2.putText(canvas, fps_txt, (fps_x, mid_y), 
+        ai_col = self.colors["Green"] if ai_active else self.colors["TextDim"]
+        draw_dot(500, ai_col)
+        cv2.putText(canvas, "AI RÜSTUNG", (515, mid_y),
                     self.font_tech, 1.0, self.colors["TextDim"], 1, cv2.LINE_AA)
+
+        # C. FPS (Ganz Rechts)
+        fps_text = f"{fps:.1f} FPS"
+        (w_txt, _), _ = cv2.getTextSize(fps_text, self.font_tech, 1.2, 1)
+        x_fps = w_cam - 30 - w_txt
+        
+        cv2.putText(canvas, fps_text, (x_fps, mid_y), 
+                    self.font_tech, 1.2, self.colors["TextDim"], 1, cv2.LINE_AA)
 
         return canvas
 
     def draw_single_detection(self, canvas, det):
-        """Minimalistische Boxen: 1px Linien, dezente Labels"""
-        left, top, right, bottom = det['box']
+        """Minimalistisch: 1px Box, Text 'schwebt' oder cleanes Label."""
+        l, t, r, b = det['box']
         label = det['label']
         score = det['score']
         
-        # Farbe: Standard Akzent (Gelb) für alles, für Ruhe.
-        # Nur bei Scout (Unsicher) grau.
         color = self.colors["Accent"]
         
-        is_scout = False
+        # Scout Mode (unsicher)
         if score < 0.45:
-            is_scout = True
-            color = self.colors["TextDim"] # Grau
+            color = self.colors["TextDim"]
             label = "?"
-
-        # 1. Rahmen (1px, sehr fein)
-        cv2.rectangle(canvas, (left, top), (right, bottom), color, 1)
-        
-        # 2. Label (Text only, oder sehr dezenter Background)
-        # Wir machen Text direkt über Box, mit kleinem Rechteck als BG für Lesbarkeit
-        if not is_scout:
-            label_text = f"{label.upper()} {score:.0%}"
-        else:
-            label_text = "?"
             
-        (tw, th), base = cv2.getTextSize(label_text, self.font_tech, 1.0, 1)
+        # 1. Box (1px)
+        cv2.rectangle(canvas, (l, t), (r, b), color, 1)
         
-        # Label Background (Surface Color, 80% Opacity wär cool, aber CV2 kann nur solid)
-        # Wir nehmen Surface Farbe
-        cv2.rectangle(canvas, 
-                      (left, top - th - 6), 
-                      (left + tw + 6, top), 
-                      self.colors["Surface"], -1)
+        # 2. Label
+        if label != "?":
+            txt = f"{label} {int(score*100)}%"
+        else:
+            txt = "?"
+            
+        # Text Größe
+        (tw, th), _ = cv2.getTextSize(txt, self.font_tech, 1.0, 1)
         
-        # Kleiner farbiger Strich oben am Label (Akzent)
-        cv2.line(canvas, (left, top - th - 6), (left + tw + 6, top - th - 6), color, 1)
-
-        # Text
-        cv2.putText(canvas, label_text, (left + 3, top - 4), 
-                    self.font_tech, 1.0, self.colors["TextMain"], 1, cv2.LINE_AA)
-
-        # Ecken andeuten? (Brackets) - Optional, aktuell 1px Rahmen clean.
-
-    def _draw_status_dot(self, canvas, x, y, color):
-        """Zeichnet einen kleinen Indikator-Punkt (besser als Textstatus)"""
-        cv2.circle(canvas, (x, y), 3, color, -1)
+        # Label Hintergrund (Surface Color, clean)
+        # Position: Oben Links, innen oder außen? Außen ist besser für Übersicht.
+        # Wir setzen es "auf" die Linie oben.
+        
+        cv2.rectangle(canvas, (l, t - th - 8), (l + tw + 8, t), self.colors["Background"], -1) # "Freistellen"
+        
+        cv2.putText(canvas, txt, (l + 4, t - 4), 
+                    self.font_tech, 1.0, self.colors["TextLight"], 1, cv2.LINE_AA)
+        
+    def draw_offline_screen(self, canvas):
+        """Zeichnet einen 'No Signal' Screen, falls Kamera ausfällt."""
+        h, w, _ = canvas.shape
+        # Background fill
+        canvas[:] = self.colors["Background"]
+        
+        # Zentrierter Text
+        text = "NO SIGNAL"
+        (tw, th), _ = cv2.getTextSize(text, self.font_main, 1.5, 2)
+        cx, cy = w // 2, h // 2
+        
+        cv2.putText(canvas, text, (cx - tw//2, cy + th//2), 
+                    self.font_main, 1.5, self.colors["TextDim"], 2, cv2.LINE_AA)
+        
+        return canvas
