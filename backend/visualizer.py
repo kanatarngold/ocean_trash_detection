@@ -47,7 +47,7 @@ class Visualizer:
                     self.font, self.s_header, self.colors["White"], self.thick, cv2.LINE_AA)
                     
         # Right Stats
-        fps_txt = f"REC [ {fps:.0f} ]" # Pseudo-REC style
+        fps_txt = f"FPS: {fps:.1f}" 
         (fw, _), _ = cv2.getTextSize(fps_txt, self.font, self.s_header, self.thick)
         cv2.putText(canvas, fps_txt, (w_cam - fw - 40, y_head),
                     self.font, self.s_header, self.colors["White"], self.thick, cv2.LINE_AA)
