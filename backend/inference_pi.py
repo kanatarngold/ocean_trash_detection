@@ -91,8 +91,8 @@ def main():
 
     # 1. Pre-allocate Cinema Mode Canvas (Optimization)
     # create once, reuse forever.
-    # COLOR: Anthracite (30, 30, 30) instead of black
-    canvas = np.full((1080, 1920, 3), (30, 30, 30), dtype=np.uint8)
+    # COLOR: Deep Navy (36, 23, 15) for Marine UI
+    canvas = np.full((1080, 1920, 3), (36, 23, 15), dtype=np.uint8)
     y_offset = (1080 - 960) // 2
     x_offset = (1920 - 1280) // 2
     
@@ -128,8 +128,8 @@ def main():
             # Reset canvas background (clean slate) - crucial for Industrial Look
             # We only need to clear the camera area if we want to be super safe, 
             # but resetting the whole thing prevents artifacts.
-            # Using 'canvas[:] = (30,30,30)' is fast enough on Pi 4/5.
-            canvas[:] = (30, 30, 30)
+            # Using 'canvas[:] = Color' is fast enough on Pi 4/5.
+            canvas[:] = (36, 23, 15)
             
             # Resize camera to nice HD size (1280x960)
             hd_frame = cv2.resize(frame, (1280, 960), interpolation=cv2.INTER_LINEAR)
