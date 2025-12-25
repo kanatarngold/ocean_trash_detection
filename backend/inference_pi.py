@@ -32,11 +32,15 @@ def main():
         print(f"❌ Kritisches Fehler beim Laden des Modells: {e}")
         return
 
-    # 2. Kamera starten
-    print("📷 Starte Kamera...")
-    cap = cv2.VideoCapture(0)
-    
-    # Auflösung für Pi V1.3
+    # 2. Kamera Setup
+    # WICHTIG: Auf Pi oft index 0 oder -1. Wir nutzen CAP_V4L2 für neue Treiber.
+    cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
+    # Fallback, falls 0 nicht geht
+    if not cap.isOpened():
+        print("⚠️ Kamera 0 nicht gefunden. Teste Kamera 1...")
+        cap = cv2.VideoCapture(1, cv2.CAP_V4L2)
+
+    # Resolution settings (Pi Camera v2/3 standard)
     cap.set(3, 640)
     cap.set(4, 480)
 
