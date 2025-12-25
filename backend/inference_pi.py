@@ -84,62 +84,67 @@ def main():
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
     cv2.resizeWindow(window_name, 640, 480)
 
-    while True:
-        # Frame Capture
-        if using_picamera:
-            frame = picam2.capture_array()
-        else:
-            ret, frame = cap.read()
-            if not ret:
-                print("Fehler beim Lesen des Frames.")
-                time.sleep(1)
-                continue
+    # 1. Pre-allocate Cinema Mode Canvas (Optimization)
+    # create once, reuse forever.
+    canvas = np.zeros((1080, 1920, 3), dtype=np.uint8)
+    y_offset = (1080 - 960) // 2
+    x_offset = (1920 - 1280) // 2
+    
+    # CRASH PROTECTION: Wrap loop in try/except to see errors
+    try:
+        while True:
+            # Frame Capture
+            if using_picamera:
+                frame = picam2.capture_array()
+            else:
+                ret, frame = cap.read()
+                if not ret:
+                    time.sleep(1)
+                    continue
 
-        # Resize if needed (Picamera already gives 640x480)
-        # frame = cv2.resize(frame, (640, 480))
+            # Inference only every 3rd frame (Boosts UI FPS x3)
+            if frame_count % 3 == 0:
+                detections = detector.detect(frame, threshold=0.45, enhance=True)
+                detections = smoother.update(detections)
+                last_detections = detections
+            else:
+                detections = last_detections
 
-        # Inference only every 3rd frame (Boosts UI FPS x3)
-        if frame_count % 3 == 0:
-            detections = detector.detect(frame, threshold=0.45, enhance=True)
-            detections = smoother.update(detections)
-            last_detections = detections
-        else:
-            detections = last_detections
+            # 2. Cinema Mode Processing
+            # Clear canvas
+            canvas.fill(0) 
+            
+            # Resize camera to nice HD size (1280x960)
+            hd_frame = cv2.resize(frame, (1280, 960), interpolation=cv2.INTER_LINEAR)
+            
+            # Paste into center
+            canvas[y_offset:y_offset+960, x_offset:x_offset+1280] = hd_frame
+            
+            # Scale detections and add offset 
+            hd_detections = []
+            for det in detections:
+                scaled_det = det.copy()
+                # Scale up (x2) AND shift by offset
+                l, t, r, b = det['box']
+                scaled_det['box'] = [
+                    l * 2 + x_offset,
+                    t * 2 + y_offset,
+                    r * 2 + x_offset,
+                    b * 2 + y_offset
+                ]
+                hd_detections.append(scaled_det)
 
-        # 1. Cinema Mode (High-End UX)
-        # Create a Full HD Black Canvas (1920x1080)
-        # This gives us the "Black Border" naturally
-        canvas = np.zeros((1080, 1920, 3), dtype=np.uint8)
-        
-        # Resize camera to nice HD size (1280x960)
-        # This preserves 4:3 aspect ratio without stretching
-        hd_frame = cv2.resize(frame, (1280, 960), interpolation=cv2.INTER_LINEAR)
-        
-        # Center the video on the canvas
-        y_offset = (1080 - 960) // 2
-        x_offset = (1920 - 1280) // 2
-        
-        canvas[y_offset:y_offset+960, x_offset:x_offset+1280] = hd_frame
-        
-        # Scale detections and add offset 
-        hd_detections = []
-        for det in detections:
-            scaled_det = det.copy()
-            # Scale up (x2) AND shift by offset
-            l, t, r, b = det['box']
-            scaled_det['box'] = [
-                l * 2 + x_offset,
-                t * 2 + y_offset,
-                r * 2 + x_offset,
-                b * 2 + y_offset
-            ]
-            hd_detections.append(scaled_det)
-
-        # Visualisierung (Draw on 1080p Canvas)
-        visualizer.draw_tracker_overlay(canvas, hd_detections, fps)
-        
-        # Display
-        cv2.imshow(window_name, canvas)
+            # Visualisierung (Draw on 1080p Canvas)
+            visualizer.draw_tracker_overlay(canvas, hd_detections, fps)
+            
+            # Display
+            cv2.imshow(window_name, canvas)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"CRITICAL ERROR: {e}")
+    finally:
+        pass
         
         # Check if window was closed by clicking 'X'
         if cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) < 1:
