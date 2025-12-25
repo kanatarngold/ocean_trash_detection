@@ -138,38 +138,41 @@ def main():
             visualizer.draw_tracker_overlay(canvas, hd_detections, fps)
             
             # Display
+            # Display
             cv2.imshow(window_name, canvas)
+            
+            # Check if window was closed by clicking 'X'
+            if cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) < 1:
+                break
+
+            # FPS Stats
+            frame_count += 1
+            elapsed = time.time() - start_time
+            if elapsed > 1.0:
+                fps = frame_count / elapsed
+                print(f"FPS: {fps:.2f} | Objekte: {len(detections)}")
+                frame_count = 0
+                start_time = time.time()
+
+            # Controls
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('q'):
+                break
+            elif key == ord('f'):
+                # Toggle Fullscreen
+                prop = cv2.getWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN)
+                if prop == cv2.WINDOW_FULLSCREEN:
+                    cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
+                else:
+                    cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
     except Exception as e:
         import traceback
         traceback.print_exc()
         print(f"CRITICAL ERROR: {e}")
     finally:
         pass
-        
-        # Check if window was closed by clicking 'X'
-        if cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) < 1:
-            break
 
-        # FPS Stats
-        frame_count += 1
-        elapsed = time.time() - start_time
-        if elapsed > 1.0:
-            fps = frame_count / elapsed
-            print(f"FPS: {fps:.2f} | Objekte: {len(detections)}")
-            frame_count = 0
-            start_time = time.time()
-
-        # Controls
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord('q'):
-            break
-        elif key == ord('f'):
-            # Toggle Fullscreen
-            prop = cv2.getWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN)
-            if prop == cv2.WINDOW_FULLSCREEN:
-                cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
-            else:
-                cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
     if using_picamera:
         try:
