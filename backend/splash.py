@@ -117,7 +117,17 @@ class SplashScreen:
         t.start()
         
         # Start UI loop
-        self.root.mainloop()
+        try:
+            self.root.mainloop()
+        except:
+            pass
+            
+        # IMPORTANT: When window closes, WAIT for the AI process to finish!
+        if self.process:
+            try:
+                self.process.wait()
+            except KeyboardInterrupt:
+                self.process.kill()
 
 if __name__ == "__main__":
     app = SplashScreen()
