@@ -2,6 +2,7 @@ import cv2
 import time
 import sys
 import os
+import numpy as np
 
 # Füge aktuellen Ordner zum Pfad hinzu
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
