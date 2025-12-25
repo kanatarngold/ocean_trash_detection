@@ -99,13 +99,12 @@ def main():
             detections = smoother.update(detections)
             last_detections = detections
         else:
-            # Reuse old detections for smooth UI
             detections = last_detections
 
-        # 5. Zeichnen (Professional Overlay)
-        frame = visualizer.draw(frame, detections, fps)
+        # Visualisierung
+        frame = visualizer.draw_tracker_overlay(frame, detections, fps)
         
-        # Anzeigen
+        # Display
         cv2.imshow('Ocean Sentry AI (Pi Edition)', frame)
 
         # FPS Stats
