@@ -22,7 +22,7 @@ MODEL_PATH = os.path.join(BASE_DIR, "models", "best_int8.tflite")
 LABEL_PATH = os.path.join(BASE_DIR, "models", "labels.txt")
 
 def main():
-    print("🌊 Ocean Trash Detector Pi (vPRO + Stable + Overlap Fix) wird gestartet...")
+    print("🌊 Ocean Sentry NAV - DEEP OCEAN THEME (v2.1) wird gestartet...")
 
     # 1. Detector laden
     try:
