@@ -2,7 +2,7 @@
 Type=Application
 Name=Ocean Sentry Start
 Comment=Launch the Ocean Trash Detector
-Exec=lxterminal -e "bash /home/marine/ocean_trash_detection/backend/launcher.sh"
+Exec=/bin/bash /home/marine/ocean_trash_detection/backend/launcher.sh
 Icon=camera-web
 Terminal=false
 Categories=Utility;Science;
