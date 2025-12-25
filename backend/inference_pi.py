@@ -32,43 +32,67 @@ def main():
         print(f"❌ Kritisches Fehler beim Laden des Modells: {e}")
         return
 
-    # 2. Kamera Setup (GStreamer für Pi Bookworm / Libcamera)
-    # Das ist die stabilste Methode für neue Pis
-    gstreamer_pipeline = (
-        "libcamerasrc ! video/x-raw, width=640, height=480, framerate=30/1 ! "
-        "videoconvert ! appsink"
-    )
-    
-    print(f"📷 Versuche GStreamer Pipeline: {gstreamer_pipeline}")
-    cap = cv2.VideoCapture(gstreamer_pipeline, cv2.CAP_GSTREAMER)
+    # 2. Kamera Setup (Picamera2 - Native RPi Solution)
+    try:
+        from picamzero import Camera # Try simplest lib first if available
+    except ImportError:
+        pass
 
-    if not cap.isOpened():
-        print("⚠️ GStreamer fehlgeschlagen. Versuche Fallback (V4L2)...")
-        cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
-        cap.set(3, 640)
-        cap.set(4, 480)
+    try:
+        # We try to import Picamera2. 
+        # CAUTION: It must be installed via apt: sudo apt install python3-picamera2
+        from picamera2 import Picamera2, Picamera2Config
+        print("📷 Starte Picamera2 (Native Mode)...")
+        
+        # Configure camera
+        picam2 = Picamera2()
+        config = picam2.create_preview_configuration(main={"size": (640, 480), "format": "BGR888"})
+        picam2.configure(config)
+        picam2.start()
+        
+        using_picamera = True
+        print("✅ Picamera2 läuft!")
+        
+    except ImportError:
+        print("⚠️ Picamera2 nicht gefunden. Installiere es mit: sudo apt install python3-picamera2")
+        print("Versuche Fallback auf OpenCV (GStreamer)...")
+        using_picamera = False
+        
+        # Fallback to GStreamer
+        gstreamer_pipeline = (
+            "libcamerasrc ! video/x-raw, width=640, height=480, framerate=30/1 ! "
+            "videoconvert ! appsink"
+        )
+        cap = cv2.VideoCapture(gstreamer_pipeline, cv2.CAP_GSTREAMER)
+        if not cap.isOpened():
+             cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
 
-    if not cap.isOpened():
-        print("❌ Fehler: Kamera konnte nicht geöffnet werden.")
-        return
+    # 3. FPS Counter
+    start_time = time.time()
+    frame_count = 0
+    fps = 0.0
 
     print("🚀 System bereit! Drücke 'q' zum Beenden.")
 
-    frame_count = 0
-    start_time = time.time()
-    fps = 0.0
-
     while True:
-        ret, frame = cap.read()
-        if not ret:
-            print("Fehler beim Lesen des Frames.")
-            break
+        # Frame Capture
+        if using_picamera:
+            # Capture array from Picamera2
+            # wait=True to sync with sensor
+            frame = picam2.capture_array()
+        else:
+            # OpenCV Fallback
+            ret, frame = cap.read()
+            if not ret:
+                print("Fehler beim Lesen des Frames.")
+                time.sleep(1)
+                continue
 
-        # 3. Erkennung (Inference)
-        # Threshold 0.25 -> "Scout Mode" sieht auch unsichere Objekte (grau markiert)
-        detections = detector.detect(frame, threshold=0.25)
-        
-        # 4. Stabilisierung
+        # Resize if needed (Picamera already gives 640x480)
+        # frame = cv2.resize(frame, (640, 480))
+
+        # Inference
+        detections = detector.detect(frame, threshold=0.45, enhance=True) # Enhance active by defaultabilisierung
         detections = smoother.update(detections)
 
         # FPS Stats
