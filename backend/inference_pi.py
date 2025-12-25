@@ -106,11 +106,22 @@ def main():
         else:
             detections = last_detections
 
-        # Visualisierung
-        frame = visualizer.draw_tracker_overlay(frame, detections, fps)
+        # 1. Upscale for HD UI (Text looks crisp even on large screens)
+        # We process detection on small image (fast), but draw on big image (pretty)
+        hd_frame = cv2.resize(frame, (1280, 960), interpolation=cv2.INTER_LINEAR)
+        
+        # Scale detections to match HD resolution (multiply coordinates by 2)
+        hd_detections = []
+        for det in detections:
+            scaled_det = det.copy()
+            scaled_det['box'] = [c * 2 for c in det['box']]
+            hd_detections.append(scaled_det)
+
+        # Visualisierung (Draw on HD Frame)
+        visualizer.draw_tracker_overlay(hd_frame, hd_detections, fps)
         
         # Display
-        cv2.imshow(window_name, frame)
+        cv2.imshow(window_name, hd_frame)
         
         # Check if window was closed by clicking 'X'
         if cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) < 1:
@@ -125,8 +136,17 @@ def main():
             frame_count = 0
             start_time = time.time()
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        # Controls
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord('q'):
             break
+        elif key == ord('f'):
+            # Toggle Fullscreen
+            prop = cv2.getWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN)
+            if prop == cv2.WINDOW_FULLSCREEN:
+                cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
+            else:
+                cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
     if using_picamera:
         try:

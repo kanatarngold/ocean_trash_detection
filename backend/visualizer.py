@@ -27,45 +27,54 @@ class Visualizer:
         self.header_height = 60
 
     def draw_tracker_overlay(self, frame, detections, fps):
-        """Draws a professional HUD overlay (Classic Pro Version)"""
+        """Draws a professional HUD overlay (HD Ready)"""
         h, w, _ = frame.shape
-        overlay = frame.copy()
         
-        # 1. Darken image slightly for "Cinema Mode" feel (Optional, disabled for now)
-        # overlay = cv2.addWeighted(overlay, 0.9, np.zeros(overlay.shape, overlay.dtype), 0, 0)
+        # Dynamic Scaling for HD (1280px) vs SD (640px)
+        scale = 1.0
+        if w > 1000:
+            scale = 2.0
+            
+        header_h = int(60 * scale)
+        font_sc = self.font_scale * scale * 0.9
+        thick = max(1, int(self.thickness * scale))
 
-        # 2. Draw Top Dashboard (Semi-transparent black bar)
-        cv2.rectangle(overlay, (0, 0), (w, self.header_height), (20, 20, 20), -1)
+        # 1. Solid Black Header (Requested by User)
+        cv2.rectangle(frame, (0, 0), (w, header_h), (0, 0, 0), -1)
         
-        # Add Header Text
-        cv2.putText(overlay, "OCEAN SENTRY AI", (20, 35), cv2.FONT_HERSHEY_DUPLEX, 0.8, (255, 255, 255), 1)
-        cv2.putText(overlay, "LIVE INFERENCE", (20, 52), self.font, 0.4, (0, 255, 0), 1)
+        # Header Text
+        cv2.putText(frame, "OCEAN SENTRY AI", (int(20*scale), int(35*scale)), cv2.FONT_HERSHEY_DUPLEX, font_sc * 1.2, (255, 255, 255), thick)
+        cv2.putText(frame, "LIVE SURVEILLANCE", (int(20*scale), int(52*scale)), self.font, font_sc * 0.7, (0, 255, 0), thick)
         
-        # Add FPS Counter (Right side)
-        cv2.putText(overlay, f"FPS: {fps:.1f}", (w - 120, 35), self.font, 0.7, (200, 200, 200), 1)
+        # Fullscreen Hint
+        cv2.putText(frame, "[F] Fullscreen", (int(350*scale), int(35*scale)), self.font, font_sc * 0.8, (100, 100, 100), thick)
         
-        # Blending the dashboard
-        alpha = 0.85
-        frame = cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0)
+        # FPS Counter (Right side)
+        cv2.putText(frame, f"FPS: {fps:.1f}", (w - int(150*scale), int(35*scale)), self.font, font_sc, (200, 200, 200), thick)
         
-        # 3. Draw Detections
+        # 2. Draw Detections
         for det in detections:
-            frame = self.draw_single_detection(frame, det)
+            frame = self.draw_single_detection(frame, det, scale)
 
-        # 4. Status Line (Bottom) if nothing detected
+        # 3. Solid Black Footer (Status Line)
+        cv2.rectangle(frame, (0, h - int(40*scale)), (w, h), (0, 0, 0), -1)
+        
         if not detections:
-            cv2.putText(frame, "SCANNING SECTOR...", (w//2 - 80, h - 30), self.font, 0.6, (0, 255, 0), 1, cv2.LINE_AA)
+            cv2.putText(frame, "SCANNING SECTOR...", (w//2 - int(100*scale), h - int(12*scale)), self.font, font_sc, (0, 255, 0), thick, cv2.LINE_AA)
         else:
-            # Show count
             stats = f"DETECTED: {len(detections)} OBJECTS"
-            cv2.putText(frame, stats, (w//2 - 80, h - 30), self.font, 0.6, (0, 200, 255), 1, cv2.LINE_AA)
+            cv2.putText(frame, stats, (w//2 - int(100*scale), h - int(12*scale)), self.font, font_sc, (0, 200, 255), thick, cv2.LINE_AA)
 
         return frame
 
-    def draw_single_detection(self, frame, det):
+    def draw_single_detection(self, frame, det, scale=1.0):
         left, top, right, bottom = det['box']
         label = det['label']
         score = det['score']
+        
+        # Scaling
+        font_sc = self.font_scale * scale
+        thick = max(1, int(self.thickness * scale))
         
         # --- SCOUT MODE ---
         is_scout = False
@@ -85,23 +94,21 @@ class Visualizer:
         frame = cv2.addWeighted(box_overlay, alpha_box, frame, 1 - alpha_box, 0)
         
         # 2. Draw Solid Border
-        # Dashed line for scout? OpenCV doesn't support dashed rect easily.
-        # We just make it thinner.
-        thickness = 1 if is_scout else 2
-        cv2.rectangle(frame, (left, top), (right, bottom), color, thickness)
+        box_thick = 1 if is_scout else thick
+        cv2.rectangle(frame, (left, top), (right, bottom), color, box_thick)
         
         # 3. Draw Label Pill (Top Left)
-        # For Scout, we keep it minimal
-        (text_w, text_h), baseline = cv2.getTextSize(label_text, self.font, self.font_scale, self.thickness)
+        (text_w, text_h), baseline = cv2.getTextSize(label_text, self.font, font_sc, thick)
         
         # Draw Label Background
-        cv2.rectangle(frame, (left, top - text_h - 10), (left + text_w + 10, top), color, -1)
+        pill_pad = int(10 * scale)
+        cv2.rectangle(frame, (left, top - text_h - pill_pad), (left + text_w + pill_pad, top), color, -1)
         
         # Draw Text
         text_color = (255, 255, 255)
         if label == "Glass" and not is_scout: 
             text_color = (0, 0, 0)
             
-        cv2.putText(frame, label_text, (left + 5, top - 5), self.font, self.font_scale, text_color, self.thickness, cv2.LINE_AA)
+        cv2.putText(frame, label_text, (left + int(5*scale), top - int(5*scale)), self.font, font_sc, text_color, thick, cv2.LINE_AA)
         
         return frame
