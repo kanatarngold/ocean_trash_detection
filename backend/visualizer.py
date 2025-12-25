@@ -18,8 +18,8 @@ class Visualizer:
             "Unknown": (128, 128, 128)  # Gray
         }
         
-        # Font settings for high-tech look
-        self.font = cv2.FONT_HERSHEY_SIMPLEX
+        # Font settings for high-tech look (Anti-aliased)
+        self.font = cv2.FONT_HERSHEY_TRIPLEX
         self.font_scale = 0.6
         self.thickness = 1
         

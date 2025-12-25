@@ -106,22 +106,40 @@ def main():
         else:
             detections = last_detections
 
-        # 1. Upscale for HD UI (Text looks crisp even on large screens)
-        # We process detection on small image (fast), but draw on big image (pretty)
+        # 1. Cinema Mode (High-End UX)
+        # Create a Full HD Black Canvas (1920x1080)
+        # This gives us the "Black Border" naturally
+        canvas = np.zeros((1080, 1920, 3), dtype=np.uint8)
+        
+        # Resize camera to nice HD size (1280x960)
+        # This preserves 4:3 aspect ratio without stretching
         hd_frame = cv2.resize(frame, (1280, 960), interpolation=cv2.INTER_LINEAR)
         
-        # Scale detections to match HD resolution (multiply coordinates by 2)
+        # Center the video on the canvas
+        y_offset = (1080 - 960) // 2
+        x_offset = (1920 - 1280) // 2
+        
+        canvas[y_offset:y_offset+960, x_offset:x_offset+1280] = hd_frame
+        
+        # Scale detections and add offset 
         hd_detections = []
         for det in detections:
             scaled_det = det.copy()
-            scaled_det['box'] = [c * 2 for c in det['box']]
+            # Scale up (x2) AND shift by offset
+            l, t, r, b = det['box']
+            scaled_det['box'] = [
+                l * 2 + x_offset,
+                t * 2 + y_offset,
+                r * 2 + x_offset,
+                b * 2 + y_offset
+            ]
             hd_detections.append(scaled_det)
 
-        # Visualisierung (Draw on HD Frame)
-        visualizer.draw_tracker_overlay(hd_frame, hd_detections, fps)
+        # Visualisierung (Draw on 1080p Canvas)
+        visualizer.draw_tracker_overlay(canvas, hd_detections, fps)
         
         # Display
-        cv2.imshow(window_name, hd_frame)
+        cv2.imshow(window_name, canvas)
         
         # Check if window was closed by clicking 'X'
         if cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) < 1:
